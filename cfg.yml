@@ -1,0 +1,24 @@
+model:
+  vocab_size: 261  # bytes (0-255) + 5 special ones (but I will only use bytes + PAD)
+  hidden_size: 768
+  intermediate_size: 1152
+  num_hidden_layers: 22
+  num_attention_heads: 12
+  hidden_activation: gelu
+  pad_token_id: 256
+  eos_token_id: 257
+  bos_token_id: 258
+  cls_token_id: 259
+  sep_token_id: 260
+  local_attention: 128
+  max_position_embeddings: 1024
+
+dataset:
+  name: IIC/ClinText-SP
+  split: train
+  version: dedup
+
+tokenizer:
+  strategy: baseline  # choose between baseline (one byte, one token), fixed chunk (chunks into a fixed size of bytes and creates a vector), or learned chunking
+  chunk_size: null
+  batch_size: 2

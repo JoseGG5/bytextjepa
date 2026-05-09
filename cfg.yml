@@ -19,6 +19,12 @@ dataset:
   version: dedup
 
 tokenizer:
-  strategy: baseline  # choose between baseline (one byte, one token), fixed chunk (chunks into a fixed size of bytes and creates a vector), or learned chunking
+  type: baseline  # choose between baseline (one byte, one token), fixed chunk (chunks into a fixed size of bytes and creates a vector), or learned chunking
   chunk_size: null
   batch_size: 2
+
+loss:
+  num_global_views: 2
+  num_points: 17
+  num_slices: 1024
+  ld: 0.2

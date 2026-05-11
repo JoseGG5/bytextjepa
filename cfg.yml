@@ -11,7 +11,7 @@ model:
   cls_token_id: 259
   sep_token_id: 260
   local_attention: 128
-  max_position_embeddings: 1024
+  max_position_embeddings: 1024  # it is also the size of all our data records (tokenizer handles this)
 
 dataset:
   name: IIC/ClinText-SP
@@ -25,6 +25,13 @@ tokenizer:
 
 loss:
   num_global_views: 2
+  num_local_views: 4
   num_points: 17
   num_slices: 1024
-  ld: 0.2
+  ld: 0.1
+
+aug:
+  global_margin_min: 70
+  global_margin_max: 100
+  local_margin_min: 10
+  local_margin_max: 35

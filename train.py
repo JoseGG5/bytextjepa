@@ -5,7 +5,7 @@ import lejepa
 
 from src.utils import load_cfg, init_encoder
 from src.data.dataset import TextDataset
-from src.data.byte_tokenizer import *
+from src.data.byte_tokenizer import BaselineTokenizer
 
 if __name__ == "__main__":
     cfg = load_cfg("cfg.yml")

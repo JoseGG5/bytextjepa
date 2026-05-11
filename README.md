@@ -24,36 +24,54 @@ This mirrors the multi-crop logic used in vision, but adapted to text. The impor
 
 ## Model forward during training
 
-At training time, the batch should contain multiple views per sample. A convenient tensor shape is:
+At training time, the batch should contain multiple views per sample, but global and local crops do not need to share the same padded sequence length. Since local views are intentionally shorter than global ones, the cleanest setup is to keep them in separate tensors:
 
-- `input_ids`: `[B, V, T]`
-- `attention_mask`: `[B, V, T]`
+- `global_input_ids`: `[B, Vg, Tg]`
+- `global_attention_mask`: `[B, Vg, Tg]`
+- `local_input_ids`: `[B, Vl, Tl]`
+- `local_attention_mask`: `[B, Vl, Tl]`
 
 Where:
 
 - `B` is the batch size
-- `V` is the number of views per sample
-- `T` is the padded sequence length of each crop
+- `Vg` is the number of global views per sample
+- `Vl` is the number of local views per sample
+- `Tg` is the padded sequence length used for global crops
+- `Tl` is the padded sequence length used for local crops
 
-The model forward should flatten the batch and view dimensions, run the shared encoder on every crop, and then pool each crop representation into a single latent vector. The simplest pooling for a first version is masked mean pooling over the token dimension.
+The model forward should flatten the batch and view dimensions within each crop group, run the shared encoder separately on global and local crops, and then pool each crop representation into a single latent vector. The simplest pooling for a first version is masked mean pooling over the token dimension.
 
 Conceptually:
 
 ```python
-def forward(input_ids, attention_mask):
-    # input_ids: [B, V, T]
-    # attention_mask: [B, V, T]
+def forward(global_input_ids, global_attention_mask,
+            local_input_ids, local_attention_mask):
+    # global_input_ids: [B, Vg, Tg]
+    # global_attention_mask: [B, Vg, Tg]
+    # local_input_ids: [B, Vl, Tl]
+    # local_attention_mask: [B, Vl, Tl]
 
-    flat_ids = input_ids.view(B * V, T)
-    flat_mask = attention_mask.view(B * V, T)
+    flat_global_ids = global_input_ids.view(B * Vg, Tg)
+    flat_global_mask = global_attention_mask.view(B * Vg, Tg)
+    flat_local_ids = local_input_ids.view(B * Vl, Tl)
+    flat_local_mask = local_attention_mask.view(B * Vl, Tl)
 
-    hidden = encoder(
-        input_ids=flat_ids,
-        attention_mask=flat_mask,
-    ).last_hidden_state  # [B * V, T, D]
+    global_hidden = encoder(
+        input_ids=flat_global_ids,
+        attention_mask=flat_global_mask,
+    ).last_hidden_state  # [B * Vg, Tg, D]
 
-    z = masked_mean(hidden, flat_mask)  # [B * V, D]
-    z = z.view(B, V, D)                 # [B, V, D]
+    local_hidden = encoder(
+        input_ids=flat_local_ids,
+        attention_mask=flat_local_mask,
+    ).last_hidden_state  # [B * Vl, Tl, D]
+
+    z_global = masked_mean(global_hidden, flat_global_mask)  # [B * Vg, D]
+    z_local = masked_mean(local_hidden, flat_local_mask)     # [B * Vl, D]
+
+    z_global = z_global.view(B, Vg, D)                       # [B, Vg, D]
+    z_local = z_local.view(B, Vl, D)                         # [B, Vl, D]
+    z = torch.cat([z_global, z_local], dim=1)                # [B, V, D]
 
     return {"z": z}
 ```
@@ -63,7 +81,7 @@ So the encoder still produces token-level representations internally, but the SS
 - `z[n, v]` = embedding of view `v` for sample `n`
 - final latent tensor shape = `[B, V, D]`
 
-This is the cleanest first implementation because it avoids token-level matching while keeping the setup faithful to the paper's view-prediction perspective.
+This is the cleanest first implementation because it avoids token-level matching while keeping the setup faithful to the paper's view-prediction perspective. It also matches the usual multi-crop strategy: crops with different effective sizes are processed in separate forward passes and only merged after pooling into view-level latents.
 
 ## Loss during training
 

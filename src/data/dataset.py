@@ -2,7 +2,7 @@ from torch.utils.data import Dataset
 
 from src.utils import load_hf_dataset
 
-
+# TODO: inegrate augmentations inside as a callable
 class TextDataset(Dataset):
     """ Wrapper of a HF dataset for torch training """
     def __init__(self, cfg: dict, tokenizer):

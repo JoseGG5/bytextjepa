@@ -1,15 +1,24 @@
 from torch.utils.data import Dataset
 
 from src.utils import load_hf_dataset
+from src.data.base_tokenizer import Tokenizer
+from src.aug.augmentations import Augmentations
 
 # TODO: inegrate augmentations inside as a callable
+# handle tokenization inside augmentations? it doesn't look clean
 class TextDataset(Dataset):
     """ Wrapper of a HF dataset for torch training """
-    def __init__(self, cfg: dict, tokenizer):
+    def __init__(
+            self,
+            cfg: dict,
+            tokenizer: Tokenizer,
+            augmenter: Augmentations
+            ):
         super().__init__()
         self.cfg = cfg["dataset"]
         self.data = load_hf_dataset(cfg=cfg)
         self.tokenizer = tokenizer
+        self.augmenter = augmenter
 
     def __len__(self):
         return len(self.data)
@@ -23,11 +32,18 @@ class TextDataset(Dataset):
             "idx": idx,
         }
 
-        if self.tokenizer:
-            out_tokenizer = self.tokenizer.tokenize(text)
-            input["input_ids"] = out_tokenizer["input_ids"]
-            input["attention_mask"] = out_tokenizer["attention_mask"]
+        # tokenize the data and store ids and masks
+        out_tokenizer = self.tokenizer.tokenize(text)
+        input["input_ids"] = out_tokenizer["input_ids"]
+        input["attention_mask"] = out_tokenizer["attention_mask"]
         
+        # augment (basically create the crops and pad them) and store results
+        global_crops, local_crops, global_masks, local_masks = self.augmenter(input)
+        input["global_crops"] = global_crops
+        input["local_crops"] = local_crops
+        input["global_masks"] = global_masks
+        input["local_masks"] = local_masks
+
         return input
 
         

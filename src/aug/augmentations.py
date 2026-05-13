@@ -20,7 +20,7 @@ class Augmentations(nn.Module):
         """ Takes the real length of the sentence and computes the indexes to
             crop the text for a global view """
         
-        # get the pct of the global crop
+        # get the pct of the crop depending of the mode
         if mode == "global":
             pct = torch.randint(
                 self.cfg["aug"]["global_margin_min"],
@@ -51,7 +51,8 @@ class Augmentations(nn.Module):
     # TODO: Note that all global crops should have the same size and all local crops also.
     # They should be processed independently, output a tensor of shape [B, G_or_L_V, D] and before the loss those should be concatenated on a single tensor [B, V, D] 
     def forward(self, x: dict):
-        
+        """ Computes local and global crops of the text, pads them and return them 
+            with their corresponding attn mask"""
         tokens = x["input_ids"]  # B, T
         attention_mask = x["attention_mask"]  # B, T
 
@@ -101,5 +102,11 @@ class Augmentations(nn.Module):
                 )
             local_views.append(padded_crop)
             local_attn_masks.append(attn_mask_crop)
+
+        # convert to tensor
+        global_views = torch.stack(global_views).transpose(0, 1)  # B, Gv, T
+        local_views = torch.stack(local_views).transpose(0, 1)  # B, Lv, T
+        global_attn_masks = torch.stack(global_attn_masks).transpose(0, 1)  # B, Gv, T
+        local_attn_masks = torch.stack(local_attn_masks).transpose(0, 1)  # B, Lv, T
 
         return global_views, local_views, global_attn_masks, local_attn_masks

@@ -2,7 +2,7 @@ import torch
 from torch import nn
 
 """ This loss is just computing the mean (B, D) of the first global views
-    and then computes the squared distance from mu to every other view """
+    and then computes the squared distance from that averaged global view to every other view """
 
 class JepaLoss(nn.Module):
     def __init__(self, num_global_views: int):

@@ -8,6 +8,7 @@ from src.utils import load_cfg, init_encoder
 from src.data.dataset import TextDataset
 from src.data.byte_tokenizer import BaselineTokenizer
 from src.aug.augmentations import Augmentations
+from src.model.model import ByteModernBertEncoder
 
 
 # TODO: think about where tokenization is handled (create padding utils than can be reusable and padding logic is not attached to tokenizers)
@@ -27,4 +28,6 @@ if __name__ == "__main__":
     text_dataset = TextDataset(cfg=cfg, tokenizer=tokenizer, augmenter=augmenter)
 
     pprint(text_dataset[0])
+
+    encoder = ByteModernBertEncoder(cfg=cfg)
 

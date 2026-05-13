@@ -4,8 +4,7 @@ from src.utils import load_hf_dataset
 from src.data.base_tokenizer import Tokenizer
 from src.aug.augmentations import Augmentations
 
-# TODO: inegrate augmentations inside as a callable
-# handle tokenization inside augmentations? it doesn't look clean
+
 class TextDataset(Dataset):
     """ Wrapper of a HF dataset for torch training """
     def __init__(

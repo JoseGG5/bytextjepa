@@ -48,7 +48,6 @@ class Augmentations(nn.Module):
         return pct, idx_down, idx_up
 
 
-    # TODO: Note that all global crops should have the same size and all local crops also.
     # They should be processed independently, output a tensor of shape [B, G_or_L_V, D] and before the loss those should be concatenated on a single tensor [B, V, D] 
     def forward(self, x: dict):
         """ Computes local and global crops of the text, pads them and return them 
@@ -78,7 +77,7 @@ class Augmentations(nn.Module):
             _, idx_down, idx_up = self._get_idxs(real_length, "global")
             crop = tokens[:, idx_down:idx_up + 1]
 
-            # crop it and return attn masks
+            # pad it and return attn masks
             padded_crop, attn_mask_crop = pad_tokens(
                 x=crop,
                 output_attn_mask=True,
@@ -93,7 +92,7 @@ class Augmentations(nn.Module):
             _, idx_down, idx_up = self._get_idxs(real_length, "local")
             crop = tokens[:, idx_down:idx_up + 1]
             
-            # crop it and return attn masks
+            # pad it and return attn masks
             padded_crop, attn_mask_crop = pad_tokens(
                 x=crop,
                 output_attn_mask=True,

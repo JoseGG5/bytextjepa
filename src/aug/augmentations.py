@@ -2,6 +2,8 @@
 import torch
 from torch import nn
 
+from src.utils import pad_tokens
+
 
 """ Global views: should crop between 70% and 100% of the original text
     Local views: should crop 10% and 35% of the original text """
@@ -56,22 +58,48 @@ class Augmentations(nn.Module):
         num_global_views = self.cfg["loss"]["num_global_views"]
         num_local_views = self.cfg["loss"]["num_local_views"]
 
-        if len(attention_mask.shape) == 2:
-            real_length = torch.where(attention_mask == 1)[1].size(0)
-        elif len(attention_mask.shape) == 1:
-            real_length = torch.where(attention_mask == 1)[0].size(0)
-        else:
-            raise ValueError(f"There is some kind of bug. Check shape {real_length.shape} from tensor attention_mask")
+        # ensure shape is B, T
+        if (len(tokens.shape) == 1):
+            tokens = tokens.unsqueeze(0)
+        if (len(attention_mask.shape) == 1):
+            attention_mask = attention_mask.unsqueeze(0)
+
+        # get real length of tokens (excluding pad tokens)
+        real_length = torch.where(attention_mask == 1)[1].size(0)
 
         # extract crops
         global_views = []
         local_views = []
+        global_attn_masks = []
+        local_attn_masks = []
         for _ in range(num_global_views):
+            # get idxs and crop
             _, idx_down, idx_up = self._get_idxs(real_length, "global")
-            global_views.append(tokens[idx_down:idx_up + 1])
+            crop = tokens[:, idx_down:idx_up + 1]
+
+            # crop it and return attn masks
+            padded_crop, attn_mask_crop = pad_tokens(
+                x=crop,
+                output_attn_mask=True,
+                max_length=self.cfg["model"]["max_position_embeddings"],
+                pad_token_id=self.cfg["model"]["pad_token_id"]
+                )
+            global_views.append(padded_crop)
+            global_attn_masks.append(attn_mask_crop)
 
         for _ in range(num_local_views):
+            # get idxs and crop
             _, idx_down, idx_up = self._get_idxs(real_length, "local")
-            local_views.append(tokens[idx_down:idx_up + 1])
+            crop = tokens[:, idx_down:idx_up + 1]
+            
+            # crop it and return attn masks
+            padded_crop, attn_mask_crop = pad_tokens(
+                x=crop,
+                output_attn_mask=True,
+                max_length=self.cfg["model"]["max_position_embeddings"],
+                pad_token_id=self.cfg["model"]["pad_token_id"]
+                )
+            local_views.append(padded_crop)
+            local_attn_masks.append(attn_mask_crop)
 
-        return torch.tensor()
+        return global_views, local_views, global_attn_masks, local_attn_masks

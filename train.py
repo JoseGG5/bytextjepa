@@ -9,7 +9,11 @@ from src.data.byte_tokenizer import BaselineTokenizer
 from src.aug.augmentations import Augmentations
 from src.model.model import ByteModernBertEncoder
 
-
+# TODO: Add W&B logging
+# TODO: Create checkpoint saving method
+# TODO: Implement train pipeline
+# TODO: Decide optimizer
+# TODO: Run pipeline on just one example to verify everything is fine (loss should go down to 0)
 
 if __name__ == "__main__":
     cfg = load_cfg("cfg.yml")

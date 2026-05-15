@@ -52,15 +52,63 @@ def pad_tokens(
 
     elif x.size(-1) < max_length:
         n_tokens_pad = max_length - x.size(-1)
+        
+        previous_size = x.size(-1)
         x = F.pad(
             input=x,
             pad=(0, n_tokens_pad),
             value=pad_token_id
         )
         attn_mask = torch.ones(size=x.size())
-        attn_mask[max_length:] = 0
+        attn_mask[previous_size:] = 0
 
     if output_attn_mask:
         return x, attn_mask
 
     return x
+
+
+def mean_pooling(x: torch.Tensor, attn_mask: torch.Tensor):
+
+    # x -> (B, T, D)
+    # attn_mask -> (B, T)
+
+    # (B, T) -> (B, T, 1)
+    input_mask_expanded = attn_mask.unsqueeze(-1)
+
+    # (B, T, 1) -> (B, T, D)
+    input_mask_expanded = input_mask_expanded.expand(
+        x.size()
+    ).float()
+
+    # Set padding embeddings to 0
+    # (B, T, D)
+    masked_embeddings = (
+        x * input_mask_expanded
+    )
+
+    # Sum over token dimension
+    # (B, T, D) -> (B, D)
+    sum_embeddings = torch.sum(
+        masked_embeddings,
+        dim=1
+    )
+
+    # Count valid tokens
+    # (B, T, D) -> (B, D)
+    sum_mask = input_mask_expanded.sum(dim=1)
+
+    # Avoid division by zero
+    sum_mask = torch.clamp(sum_mask, min=1e-9)
+
+    # Compute mean pooled embeddings
+    # (B, D)
+    mean_embeddings = (
+        sum_embeddings / sum_mask
+    )
+
+    return mean_embeddings
+
+
+
+

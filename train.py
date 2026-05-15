@@ -1,8 +1,6 @@
-import os
-from pprint import pprint
+
 
 import torch
-import lejepa
 from torch.utils.data import DataLoader
 
 from src.utils import load_cfg, init_encoder
@@ -12,8 +10,6 @@ from src.aug.augmentations import Augmentations
 from src.model.model import ByteModernBertEncoder
 
 
-# TODO: think about where tokenization is handled (create padding utils than can be reusable and padding logic is not attached to tokenizers)
-# this way: inside the tokenizer we call padding utils, after that we perform augmentations and then we apply padding logic to each view
 
 if __name__ == "__main__":
     cfg = load_cfg("cfg.yml")

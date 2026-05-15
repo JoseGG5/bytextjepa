@@ -16,13 +16,6 @@ def load_cfg(path: str) -> dict:
     return config
 
 
-def init_encoder(cfg: dict) -> ModernBertModel:
-    """ Initializes a random ModernBERT model with the
-    specified config"""
-    cfg = ModernBertConfig(**cfg["model"])
-    return ModernBertModel(cfg)
-
-
 def load_hf_dataset(cfg: dict) -> datasets.arrow_dataset.Dataset:
     """ Loads a dataset from HF datasets """
     dataset = load_dataset(
@@ -33,6 +26,8 @@ def load_hf_dataset(cfg: dict) -> datasets.arrow_dataset.Dataset:
     return dataset
 
 
+# TODO: This works for 1D tokens, but code is confusing as it is in some parts generic and expecting 2D.
+# Maybe should refactor a bit but it works so its fine
 def pad_tokens(
         x: torch.tensor,
         output_attn_mask: bool,

@@ -27,7 +27,6 @@ class TextDataset(Dataset):
         text = sample["text"]
 
         input = {
-            "text": text,
             "idx": idx,
         }
 
@@ -35,7 +34,7 @@ class TextDataset(Dataset):
         out_tokenizer = self.tokenizer.tokenize(text)
         input["input_ids"] = out_tokenizer["input_ids"]
         input["attention_mask"] = out_tokenizer["attention_mask"]
-        
+
         # augment (basically create the crops and pad them) and store results
         global_crops, local_crops, global_masks, local_masks = self.augmenter(input)
         input["global_crops"] = global_crops

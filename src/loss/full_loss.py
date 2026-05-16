@@ -17,7 +17,7 @@ class FullLoss(nn.Module):
         super().__init__()
         self.jepa_loss = JepaLoss(num_global_views=num_global_views)
         self.sigreg_loss = lejepa.multivariate.SlicingUnivariateTest(
-            univariate_test=lejepa.univariate.EppsPulley(num_points=num_points),
+            univariate_test=lejepa.univariate.EppsPulley(n_points=num_points),
             num_slices=num_slices,
         )
         self.ld = ld

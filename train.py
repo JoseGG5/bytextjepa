@@ -123,13 +123,24 @@ if __name__ == "__main__":
                 for k, v in batch.items()
             }
 
-            z = encoder(
-                global_input_ids=batch["global_crops"],
-                global_attn_mask=batch["global_masks"],
-                local_input_ids=batch["local_crops"],
-                local_attn_mask=batch["local_masks"],
-            )
+            # if bf16 is set compute the forward with bf16
+            if cfg["exp"]["use_bf16"]:
+                with torch.autocast(device_type=device.type, dtype=torch.bfloat16, enabled=True):
+                    z = encoder(
+                        global_input_ids=batch["global_crops"],
+                        global_attn_mask=batch["global_masks"],
+                        local_input_ids=batch["local_crops"],
+                        local_attn_mask=batch["local_masks"],
+                    )
+            else:  # else high precision
+                z = encoder(
+                        global_input_ids=batch["global_crops"],
+                        global_attn_mask=batch["global_masks"],
+                        local_input_ids=batch["local_crops"],
+                        local_attn_mask=batch["local_masks"],
+                    )
 
+            # loss always in high precision
             loss = loss_fn(z=z)
 
             optimizer.zero_grad()

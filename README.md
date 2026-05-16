@@ -135,9 +135,11 @@ This is the key conceptual picture for the experiment:
 
 This first version should be understood as a LeJEPA-inspired text pretraining experiment, not as a byte-level masked reconstruction objective and not as a classic teacher-student JEPA. The model is not asked to reconstruct missing bytes, and it is not asked to predict a vocabulary distribution. Instead, it is trained so that multiple byte-based views of the same text record map to a shared, stable latent structure.
 
-If this baseline works, later iterations can make the setup more structured by:
+The main idea is to **see if this approach works as a research line, and then,
+try to see how close it gets to normal MLM pretraining for a fixed compute**. After this, if this baseline works, later iterations can make the setup more structured by:
 
 - designing better text crops
 - adding sentence-aware or span-aware sampling
 - moving from simple pooled view embeddings to span-level latent prediction
 - experimenting with chunking strategies beyond the one-byte baseline
+

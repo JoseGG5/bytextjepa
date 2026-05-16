@@ -11,13 +11,19 @@ class TextDataset(Dataset):
             self,
             cfg: dict,
             tokenizer: Tokenizer,
-            augmenter: Augmentations
+            augmenter: Augmentations,
+            dev: bool = False
             ):
         super().__init__()
         self.cfg = cfg["dataset"]
-        self.data = load_hf_dataset(cfg=cfg)
         self.tokenizer = tokenizer
         self.augmenter = augmenter
+        data = load_hf_dataset(cfg=cfg)
+
+        if dev:  # to check we can get the loss to 0
+            data = data.select(range(1))
+
+        self.data = data
 
     def __len__(self):
         return len(self.data)

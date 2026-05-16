@@ -39,8 +39,10 @@ def pad_tokens(
         Currently is very specific to the part of padding crops and it is not used in the part of padding in tokenization.
         It could be done via allowing the function to receive a list of str"""
 
+    device = "cuda" if torch.cuda.is_available else "cpu"
+
     # set attn_mask as a tensor of ones because this will recieve raw tokens after the crops (no padding has been done)
-    attn_mask = torch.ones(size=x.size())
+    attn_mask = torch.ones(size=x.size(), device=device)
 
     if x.size(-1) > max_length:
         x = x[..., :max_length]

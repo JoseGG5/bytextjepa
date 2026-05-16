@@ -22,8 +22,8 @@ class BaselineTokenizer(Tokenizer):
             attention_mask = [1] * len(byte_text) + [0] * (self.cfg["model"]["max_position_embeddings"] - len(byte_text))
 
         # convert to tensor
-        input_ids = torch.tensor(record, dtype=torch.long)  # [T]
-        attention_mask = torch.tensor(attention_mask, dtype=torch.long)  # [T]
+        input_ids = torch.tensor(record, dtype=torch.long, device=self.cfg["exp"]["device"])  # [T]
+        attention_mask = torch.tensor(attention_mask, dtype=torch.long, device=self.cfg["exp"]["device"])  # [T]
 
         tokenized_text = {
             "input_ids": input_ids,

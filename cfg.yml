@@ -11,24 +11,24 @@ model:
   cls_token_id: 259
   sep_token_id: 260
   local_attention: 128
-  max_position_embeddings: 1024  # it is also the size of all our data records (tokenizer handles this)
+  max_position_embeddings: 512  # it is also the size of all our data records (tokenizer handles this)
 
 dataset:
   name: IIC/ClinText-SP
   split: train
   version: dedup
-  dev: true
+  dev: false
 
 tokenizer:
   type: baseline  # choose between baseline (one byte, one token), fixed chunk (chunks into a fixed size of bytes and creates a vector), or learned chunking
   chunk_size: null
-  batch_size: 1
+  batch_size: 16
 
 loss:
   num_global_views: 2
   num_local_views: 4
   num_points: 17
-  num_slices: 128
+  num_slices: 64
   ld: 0.1
 
 aug:
@@ -39,12 +39,14 @@ aug:
 
 exp:
   device: cuda
-  lr: 10e-4
+  lr: 1e-4
   optim: adamw
   beta0: 0.9
   beta1: 0.95
   eps: 1e-8
   wd: 0.01
-  epochs: 1000
+  epochs: 10
+  log_every_n_step: 10
+  save_every_n_step: 500
 
   

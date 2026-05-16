@@ -114,8 +114,9 @@ if __name__ == "__main__":
     ).to(device)
 
     # start train pipe
+    step = 0
     for epoch in range(cfg["exp"]["epochs"]):
-        for step, batch in enumerate(dataloader):
+        for batch in dataloader:
             
             batch = {  # just to move to gpu
                 k: v.to(device)  
@@ -133,21 +134,32 @@ if __name__ == "__main__":
 
             optimizer.zero_grad()
             loss["loss"].backward()
+
+            # get grad norms to log
+            total_norm_sq = 0.0
+            for param in encoder.parameters():
+                if param.grad is not None:
+                    param_norm = param.grad.detach().data.norm(2)
+                    total_norm_sq += param_norm.item() ** 2
+            grad_norm = total_norm_sq ** 0.5
+
             optimizer.step()
 
-            if step % 10 == 0:  # log to w&b
-                wandb.log({
-                    "loss": loss["loss"].item(),
-                    "pred_loss": loss["pred_loss"].item(),
-                    "sigreg_loss": loss["sigreg_loss"].item(),
-                    "epoch": epoch,
-                    "step": step,
-                })
-            
-            if step % 50 == 0:  # save checks
+            if step % cfg["exp"]["log_every_n_step"] == 0:  # log to w&b
+                wandb.log(
+                    {
+                        "loss": loss["loss"].item(),
+                        "pred_loss": loss["pred_loss"].item(),
+                        "sigreg_loss": loss["sigreg_loss"].item(),
+                        "step": step,
+                        "grad_norm": grad_norm
+                    }
+                )
+
+                
+            if step % cfg["exp"]["save_every_n_step"] == 0:  # save checks
                 torch.save(
                     {
-                        "epoch": epoch,
                         "step": step,
                         "model_state_dict": encoder.state_dict(),
                         "optimizer_state_dict": optimizer.state_dict(),
@@ -156,3 +168,5 @@ if __name__ == "__main__":
                     },
                     os.path.join(save_ckp_path, f"epoch_{epoch}_step_{step}.pt"),
                 )
+            
+            step += 1

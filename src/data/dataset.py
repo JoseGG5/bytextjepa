@@ -11,8 +11,7 @@ class TextDataset(Dataset):
             self,
             cfg: dict,
             tokenizer: Tokenizer,
-            augmenter: Augmentations,
-            dev: bool = False
+            augmenter: Augmentations
             ):
         super().__init__()
         self.cfg = cfg["dataset"]
@@ -20,7 +19,7 @@ class TextDataset(Dataset):
         self.augmenter = augmenter
         data = load_hf_dataset(cfg=cfg)
 
-        if dev:  # to check we can get the loss to 0
+        if cfg["dataset"]["dev"]:  # to check we can get the loss to 0
             data = data.select(range(1))
 
         self.data = data

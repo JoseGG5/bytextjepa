@@ -12,7 +12,7 @@ class FullLoss(nn.Module):
         num_global_views: int,
         num_points: int,
         num_slices: int,
-        ld: float = 0.2,
+        ld: float
     ):
         super().__init__()
         self.jepa_loss = JepaLoss(num_global_views=num_global_views)

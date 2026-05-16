@@ -111,7 +111,7 @@ if __name__ == "__main__":
         num_points=cfg["loss"]["num_points"],
         num_slices=cfg["loss"]["num_slices"],
         ld=float(cfg["loss"]["ld"]),
-    )
+    ).to(device)
 
     # start train pipe
     for epoch in range(cfg["exp"]["epochs"]):

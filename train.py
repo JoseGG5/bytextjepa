@@ -40,6 +40,7 @@ if __name__ == "__main__":
         entity=os.getenv("WANDB_ENTITY"),
         project=os.getenv("WANDB_PROJECT"),
         config=cfg,
+        name=name_exp
     )
 
     # setup tokenizer

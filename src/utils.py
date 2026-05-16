@@ -1,3 +1,4 @@
+import os
 from typing import Union
 
 import yaml
@@ -39,10 +40,10 @@ def pad_tokens(
         Currently is very specific to the part of padding crops and it is not used in the part of padding in tokenization.
         It could be done via allowing the function to receive a list of str"""
 
-    device = "cuda" if torch.cuda.is_available else "cpu"
+    device = x.device
 
     # set attn_mask as a tensor of ones because this will recieve raw tokens after the crops (no padding has been done)
-    attn_mask = torch.ones(size=x.size(), device=device)
+    attn_mask = torch.ones(size=x.size(), device=device, dtype=torch.long)
 
     if x.size(-1) > max_length:
         x = x[..., :max_length]
@@ -56,7 +57,7 @@ def pad_tokens(
             pad=(0, n_tokens_pad),
             value=pad_token_id
         )
-        attn_mask = torch.ones(size=x.size())
+        attn_mask = torch.ones(size=x.size(), device=device, dtype=torch.long)
         attn_mask[previous_size:] = 0
 
     if output_attn_mask:
@@ -107,5 +108,16 @@ def mean_pooling(x: torch.Tensor, attn_mask: torch.Tensor):
     return mean_embeddings
 
 
+def get_exp_name():
+    """ Useful function to ensure a convention in experiment naming """
+    all_exps = os.listdir("results")
 
+    if len(all_exps) == 0:  # handle first exp
+        return "exp0"
+
+    numbers = []
+    for exp in all_exps:
+        numbers.append(int(exp[3:]))  # all exps will be named like expX
+
+    return f"exp{max(numbers)+1}"
 

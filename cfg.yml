@@ -11,18 +11,21 @@ model:
   cls_token_id: 259
   sep_token_id: 260
   local_attention: 128
-  max_position_embeddings: 512  # it is also the size of all our data records (tokenizer handles this)
+  max_position_embeddings: 768  # maximum size we will be able to process (architectural constraint for inference)
 
 dataset:
   name: IIC/ClinText-SP
   split: train
   version: dedup
-  dev: false
+  dev: true
+
+data:
+  record_max_bytes: 4096  # how many raw bytes of a record are retained before crop sampling
 
 tokenizer:
   type: baseline  # choose between baseline (one byte, one token), fixed chunk (chunks into a fixed size of bytes and creates a vector), or learned chunking
   chunk_size: null
-  batch_size: 16
+  batch_size: 1
 
 loss:
   num_global_views: 2
@@ -32,10 +35,12 @@ loss:
   ld: 0.1
 
 aug:
-  global_margin_min: 70
+  global_margin_min: 70  # the boundaries for global views (between min and max % of the original crop)
   global_margin_max: 100
-  local_margin_min: 10
+  local_margin_min: 10  # the boundaries for local views (between min and max % of the original crop)
   local_margin_max: 35
+  local_max_length: 128  # the max token to pad/truncate a local crop (tune every time you change max_position_embeddings)
+  global_max_length: 512  # the max token to pad/truncate a local crop (this is indeed the max length we will see in training)
 
 exp:
   device: cuda
@@ -45,8 +50,8 @@ exp:
   beta1: 0.95
   eps: 1e-8
   wd: 0.01
-  epochs: 10
-  log_every_n_step: 10
+  epochs: 1000
+  log_every_n_step: 1
   save_every_n_step: 500
   use_bf16: true
 

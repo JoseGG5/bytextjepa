@@ -75,7 +75,7 @@ class Augmentations(nn.Module):
             padded_crop, attn_mask_crop = pad_tokens(
                 x=crop,
                 output_attn_mask=True,
-                max_length=self.cfg["model"]["max_position_embeddings"],
+                max_length=self.cfg["aug"]["global_max_length"],
                 pad_token_id=self.cfg["model"]["pad_token_id"]
                 )
 
@@ -91,7 +91,7 @@ class Augmentations(nn.Module):
             padded_crop, attn_mask_crop = pad_tokens(
                 x=crop,
                 output_attn_mask=True,
-                max_length=self.cfg["model"]["max_position_embeddings"],
+                max_length=self.cfg["aug"]["local_max_length"],
                 pad_token_id=self.cfg["model"]["pad_token_id"]
                 )
             local_views.append(padded_crop)

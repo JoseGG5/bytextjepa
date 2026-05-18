@@ -4,7 +4,7 @@ import torch
 from src.data.base_tokenizer import Tokenizer
 
 class BaselineTokenizer(Tokenizer):
-    """ This tokenizer simply encodes to bytes and handles padding and truncation.
+    """ This tokenizer simply encodes to bytes and handles optional record truncation.
         It does not handle chunking strategies like learned chunk or fixed size chunk"""
     def __init__(self, cfg):
         super().__init__()
@@ -13,13 +13,15 @@ class BaselineTokenizer(Tokenizer):
 
     def tokenize(self, text: str) -> dict:
         byte_text = list(text.encode("utf-8"))
+        record_max_bytes = self.cfg["data"]["record_max_bytes"]
 
-        if len(byte_text) >= self.cfg["model"]["max_position_embeddings"]:  # truncate
-            record = byte_text[:self.cfg["model"]["max_position_embeddings"]]
-            attention_mask = [1] * self.cfg["model"]["max_position_embeddings"]
-        else:  # pad
-            record = byte_text + [self.cfg["model"]["pad_token_id"]] * (self.cfg["model"]["max_position_embeddings"] - len(byte_text)) 
-            attention_mask = [1] * len(byte_text) + [0] * (self.cfg["model"]["max_position_embeddings"] - len(byte_text))
+        if record_max_bytes is not None:
+            # this is safe even if the list is smaller than record_max_bytes
+            record = byte_text[:record_max_bytes]
+        else:
+            record = byte_text
+
+        attention_mask = [1] * len(record)
 
         # convert to tensor
         input_ids = torch.tensor(record, dtype=torch.long)  # [T]

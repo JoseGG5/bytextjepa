@@ -6,34 +6,32 @@ from torch.optim import AdamW
 from dotenv import load_dotenv
 import wandb
 
-from src.utils import load_cfg, get_exp_name
+from src.utils import load_cfg, get_exp_name, validate_cfg
 from src.data.dataset import TextDataset
 from src.data.byte_tokenizer import BaselineTokenizer
 from src.aug.augmentations import Augmentations
 from src.model.model import ByteModernBertEncoder
 from src.loss.full_loss import FullLoss
 
-# TODO: Add W&B logging
-# TODO: Implement train pipeline
-# TODO: Run pipeline on just one example to verify everything is fine (loss should go down to 0)
 
 if __name__ == "__main__":
 
-    load_dotenv()
-
-    # handle path to save results
-    os.makedirs("results", exist_ok=True)
-    name_exp = get_exp_name()
-    save_ckp_path = f"results/{name_exp}"
-    os.makedirs(save_ckp_path)    
+    load_dotenv()    
 
     # load master cfg
     cfg = load_cfg("cfg.yml")
+    validate_cfg(cfg)
     requested_device = cfg["exp"]["device"]
     if requested_device == "cuda" and not torch.cuda.is_available():
         device = torch.device("cpu")
     else:
         device = torch.device(requested_device)
+
+    # handle path to save results
+    os.makedirs("results", exist_ok=True)
+    name_exp = get_exp_name()
+    save_ckp_path = f"results/{name_exp}"
+    os.makedirs(save_ckp_path)
 
     # setup w&b
     run = wandb.init(

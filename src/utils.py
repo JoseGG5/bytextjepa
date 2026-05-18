@@ -17,6 +17,29 @@ def load_cfg(path: str) -> dict:
     return config
 
 
+def validate_cfg(cfg: dict) -> None:
+    """Validates the length-related configuration for crop construction."""
+    max_position_embeddings = cfg["model"]["max_position_embeddings"]
+    global_max_length = cfg["aug"]["global_max_length"]
+    local_max_length = cfg["aug"]["local_max_length"]
+    record_max_bytes = cfg["data"]["record_max_bytes"]
+
+    if max_position_embeddings <= 0:
+        raise ValueError("model.max_position_embeddings must be greater than 0")
+    if global_max_length <= 0:
+        raise ValueError("aug.global_max_length must be greater than 0")
+    if local_max_length <= 0:
+        raise ValueError("aug.local_max_length must be greater than 0")
+    if global_max_length > max_position_embeddings:
+        raise ValueError("aug.global_max_length cannot be greater than model.max_position_embeddings")
+    if local_max_length > max_position_embeddings:
+        raise ValueError("aug.local_max_length cannot be greater than model.max_position_embeddings")
+    if local_max_length > global_max_length:
+        raise ValueError("aug.local_max_length cannot be greater than aug.global_max_length")
+    if record_max_bytes is not None and record_max_bytes <= 0:
+        raise ValueError("data.record_max_bytes must be greater than 0 or null")
+
+
 def load_hf_dataset(cfg: dict) -> datasets.arrow_dataset.Dataset:
     """ Loads a dataset from HF datasets """
     dataset = load_dataset(
@@ -47,6 +70,7 @@ def pad_tokens(
 
     if x.size(-1) > max_length:
         x = x[..., :max_length]
+        attn_mask = attn_mask[..., :max_length]
 
     elif x.size(-1) < max_length:
         n_tokens_pad = max_length - x.size(-1)

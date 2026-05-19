@@ -54,4 +54,7 @@ exp:
   save_every_n_step: 500
   use_bf16: true
 
-  
+optim:
+  warmup_steps: 0.05
+  start_factor: 0.1
+  end_factor: 1.0

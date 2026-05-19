@@ -3,6 +3,7 @@ import os
 import torch
 from torch.utils.data import DataLoader
 from torch.optim import AdamW
+from torch.optim.lr_scheduler import SequentialLR, LinearLR, CosineAnnealingLR
 from dotenv import load_dotenv
 import wandb
 
@@ -103,6 +104,27 @@ if __name__ == "__main__":
     else:
         raise ValueError(f"Optim {cfg['exp']['optim']} not implemented in codebase")
 
+    # LR scheduler: short warmup followed by cosine decay.
+    total_steps = max(1, len(dataloader) * cfg["exp"]["epochs"])
+    warmup_steps = max(1, int(float(cfg['optim']['warmup_steps']) * total_steps))
+    cosine_steps = max(1, total_steps - warmup_steps)
+
+    warmup_scheduler = LinearLR(
+        optimizer,
+        start_factor=float(cfg['optim']['start_factor']),
+        end_factor=float(cfg['optim']['end_factor']),
+        total_iters=warmup_steps,
+    )
+    cosine_scheduler = CosineAnnealingLR(
+        optimizer,
+        T_max=cosine_steps,
+    )
+    scheduler = SequentialLR(
+        optimizer,
+        schedulers=[warmup_scheduler, cosine_scheduler],
+        milestones=[warmup_steps],
+    )
+
     # setup loss function
     loss_fn = FullLoss(
         num_global_views=cfg["loss"]["num_global_views"],
@@ -153,6 +175,7 @@ if __name__ == "__main__":
             grad_norm = total_norm_sq ** 0.5
 
             optimizer.step()
+            scheduler.step()
 
             if step % cfg["exp"]["log_every_n_step"] == 0:  # log to w&b
                 wandb.log(
@@ -164,6 +187,19 @@ if __name__ == "__main__":
                         "grad_norm": grad_norm
                     }
                 )
+                wandb.log(
+                    {
+                        "lr": scheduler.get_last_lr()[0],
+                        "step": step,
+                    }
+                )
+                print({
+                        "loss": loss["loss"].item(),
+                        "pred_loss": loss["pred_loss"].item(),
+                        "sigreg_loss": loss["sigreg_loss"].item(),
+                        "step": step,
+                        "grad_norm": grad_norm
+                    })
 
                 
             if step % cfg["exp"]["save_every_n_step"] == 0:  # save checks

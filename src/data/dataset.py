@@ -47,7 +47,13 @@ class TextDataset(Dataset):
         input["global_masks"] = global_masks
         input["local_masks"] = local_masks
 
-        return input
+        return {
+            "idx": idx,
+            "global_crops": global_crops,
+            "local_crops": local_crops,
+            "global_masks": global_masks,
+            "local_masks": local_masks,
+        }
 
         
 

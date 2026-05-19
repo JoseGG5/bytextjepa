@@ -18,6 +18,12 @@ class TextDataset(Dataset):
         self.tokenizer = tokenizer
         self.augmenter = augmenter
         data = load_hf_dataset(cfg=cfg)
+        
+        """After inspecting with the SQL console in HF there are empty 
+        or really short records. Given that n_bytes ~= n_chars we can safely
+        filter at the data size and not at the tokenized data size
+        """
+        data = data.filter(lambda x: x["text"] is not None and len(x["text"].strip()) >= 64)
 
         if cfg["dataset"]["dev"]:  # to check we can get the loss to 0
             data = data.select(range(1))

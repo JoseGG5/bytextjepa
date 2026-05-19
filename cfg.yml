@@ -24,7 +24,6 @@ data:
 
 tokenizer:
   type: baseline  # choose between baseline (one byte, one token), fixed chunk (chunks into a fixed size of bytes and creates a vector), or learned chunking
-  chunk_size: null
   batch_size: 1
 
 loss:

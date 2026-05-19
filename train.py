@@ -184,23 +184,11 @@ if __name__ == "__main__":
                         "pred_loss": loss["pred_loss"].item(),
                         "sigreg_loss": loss["sigreg_loss"].item(),
                         "step": step,
-                        "grad_norm": grad_norm
-                    }
-                )
-                wandb.log(
-                    {
+                        "grad_norm": grad_norm,
                         "lr": scheduler.get_last_lr()[0],
                         "step": step,
                     }
                 )
-                print({
-                        "loss": loss["loss"].item(),
-                        "pred_loss": loss["pred_loss"].item(),
-                        "sigreg_loss": loss["sigreg_loss"].item(),
-                        "step": step,
-                        "grad_norm": grad_norm
-                    })
-
                 
             if step % cfg["exp"]["save_every_n_step"] == 0:  # save checks
                 torch.save(

@@ -4,6 +4,7 @@ from src.utils import load_hf_dataset
 from src.data.base_tokenizer import Tokenizer
 from src.aug.augmentations import Augmentations
 
+# TODO: Make a method to see training crops
 
 class TextDataset(Dataset):
     """ Wrapper of a HF dataset for torch training """

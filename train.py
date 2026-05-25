@@ -13,6 +13,9 @@ from src.data.byte_tokenizer import BaselineTokenizer
 from src.aug.augmentations import Augmentations
 from src.model.model import ByteModernBertEncoder
 from src.loss.full_loss import FullLoss
+from src.mlm.dataset import MlmDataset
+from src.mlm.model import ByteModernBertMlm
+from src.mlm.loss import MlmLoss
 
 
 if __name__ == "__main__":
@@ -48,22 +51,34 @@ if __name__ == "__main__":
     else:
         raise ValueError(f"{cfg['tokenizer']['type']} is currently not implemented")
 
-    # setup data modules
-    augmenter = Augmentations(cfg=cfg)
-    text_dataset = TextDataset(
-        cfg=cfg,
-        tokenizer=tokenizer,
-        augmenter=augmenter
+    objective = cfg["exp"]["objective"]
+    if objective == "lejepa":
+        augmenter = Augmentations(cfg=cfg)
+        dataset = TextDataset(
+            cfg=cfg,
+            tokenizer=tokenizer,
+            augmenter=augmenter
         )
+        model = ByteModernBertEncoder(cfg=cfg).to(device)
+        loss_fn = FullLoss(
+            num_global_views=cfg["loss"]["num_global_views"],
+            num_points=cfg["loss"]["num_points"],
+            num_slices=cfg["loss"]["num_slices"],
+            ld=float(cfg["loss"]["ld"]),
+        ).to(device)
+    elif objective == "mlm":
+        dataset = MlmDataset(cfg=cfg, tokenizer=tokenizer)
+        model = ByteModernBertMlm(cfg=cfg).to(device)
+        loss_fn = MlmLoss().to(device)
+    else:
+        raise ValueError(f"Objective {objective} not implemented in codebase")
+
     dataloader = DataLoader(
-        dataset=text_dataset,
+        dataset=dataset,
         batch_size=cfg["tokenizer"]["batch_size"],
         shuffle=True
-        )
-    
-    # setup encoder
-    encoder = ByteModernBertEncoder(cfg=cfg).to(device)
-    encoder.train()
+    )
+    model.train()
 
     # setup the optim
 
@@ -73,7 +88,7 @@ if __name__ == "__main__":
     decay_params = []
     no_decay_params = []
 
-    for name, param in encoder.named_parameters():
+    for name, param in model.named_parameters():
         if not param.requires_grad:
             continue
 
@@ -125,14 +140,6 @@ if __name__ == "__main__":
         milestones=[warmup_steps],
     )
 
-    # setup loss function
-    loss_fn = FullLoss(
-        num_global_views=cfg["loss"]["num_global_views"],
-        num_points=cfg["loss"]["num_points"],
-        num_slices=cfg["loss"]["num_slices"],
-        ld=float(cfg["loss"]["ld"]),
-    ).to(device)
-
     # start train pipe
     step = 0
     for epoch in range(cfg["exp"]["epochs"]):
@@ -146,29 +153,43 @@ if __name__ == "__main__":
             # if bf16 is set compute the forward with bf16
             if cfg["exp"]["use_bf16"]:
                 with torch.autocast(device_type=device.type, dtype=torch.bfloat16, enabled=True):
-                    z = encoder(
+                    if objective == "lejepa":
+                        outputs = model(
+                            global_input_ids=batch["global_crops"],
+                            global_attn_mask=batch["global_masks"],
+                            local_input_ids=batch["local_crops"],
+                            local_attn_mask=batch["local_masks"],
+                        )
+                    else:
+                        outputs = model(
+                            input_ids=batch["input_ids"],
+                            attention_mask=batch["attention_mask"],
+                        )
+            else:  # else high precision
+                if objective == "lejepa":
+                    outputs = model(
                         global_input_ids=batch["global_crops"],
                         global_attn_mask=batch["global_masks"],
                         local_input_ids=batch["local_crops"],
                         local_attn_mask=batch["local_masks"],
                     )
-            else:  # else high precision
-                z = encoder(
-                        global_input_ids=batch["global_crops"],
-                        global_attn_mask=batch["global_masks"],
-                        local_input_ids=batch["local_crops"],
-                        local_attn_mask=batch["local_masks"],
+                else:
+                    outputs = model(
+                        input_ids=batch["input_ids"],
+                        attention_mask=batch["attention_mask"],
                     )
 
-            # loss always in high precision
-            loss = loss_fn(z=z)
+            if objective == "lejepa":
+                loss = loss_fn(z=outputs)
+            else:
+                loss = loss_fn(logits=outputs.float(), labels=batch["labels"])
 
             optimizer.zero_grad()
             loss["loss"].backward()
 
             # get grad norms to log
             total_norm_sq = 0.0
-            for param in encoder.parameters():
+            for param in model.parameters():
                 if param.grad is not None:
                     param_norm = param.grad.detach().data.norm(2)
                     total_norm_sq += param_norm.item() ** 2
@@ -178,23 +199,24 @@ if __name__ == "__main__":
             scheduler.step()
 
             if step % cfg["exp"]["log_every_n_step"] == 0:  # log to w&b
-                wandb.log(
-                    {
+                log_payload = {
                         "loss": loss["loss"].item(),
-                        "pred_loss": loss["pred_loss"].item(),
-                        "sigreg_loss": loss["sigreg_loss"].item(),
                         "step": step,
                         "grad_norm": grad_norm,
                         "lr": scheduler.get_last_lr()[0],
-                        "step": step,
-                    }
-                )
+                }
+                if objective == "lejepa":
+                    log_payload["pred_loss"] = loss["pred_loss"].item()
+                    log_payload["sigreg_loss"] = loss["sigreg_loss"].item()
+                else:
+                    log_payload["masked_token_accuracy"] = loss["masked_token_accuracy"].item()
+                wandb.log(log_payload)
                 
             if step % cfg["exp"]["save_every_n_step"] == 0:  # save checks
                 torch.save(
                     {
                         "step": step,
-                        "model_state_dict": encoder.state_dict(),
+                        "model_state_dict": model.state_dict(),
                         "optimizer_state_dict": optimizer.state_dict(),
                         "cfg": cfg,
                         "loss": loss["loss"].item(),

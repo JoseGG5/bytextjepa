@@ -6,6 +6,7 @@ model:
   num_attention_heads: 12
   hidden_activation: gelu
   pad_token_id: 256  # ONLY THIS ONE WILL BE USED
+  mask_token_id: 257
   eos_token_id: 257
   bos_token_id: 258
   cls_token_id: 259
@@ -44,6 +45,7 @@ aug:
 exp:
   device: cuda
   lr: 1e-4
+  objective: mlm
   optim: adamw
   beta0: 0.9
   beta1: 0.95
@@ -58,3 +60,9 @@ optim:
   warmup_steps: 0.05
   start_factor: 0.1
   end_factor: 1.0
+
+mlm:
+  max_length: 512
+  mask_prob: 0.15
+  replace_mask_prob: 0.8
+  replace_random_prob: 0.1

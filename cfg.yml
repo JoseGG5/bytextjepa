@@ -63,6 +63,6 @@ optim:
 
 mlm:
   max_length: 512
-  mask_prob: 0.15
+  mask_prob: 0.20
   replace_mask_prob: 0.8
   replace_random_prob: 0.1

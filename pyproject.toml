@@ -9,6 +9,7 @@ dependencies = [
     "lejepa",
     "python-dotenv>=1.2.2",
     "pyyaml>=6.0.3",
+    "scikit-learn>=1.7.2",
     "scipy>=1.17.1",
     "torch>=2.7.1",
     "transformers>=5.8.0",

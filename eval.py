@@ -13,6 +13,7 @@ from src.data.dataset import TextDataset
 from src.data.byte_tokenizer import BaselineTokenizer
 from src.aug.augmentations import Augmentations
 from src.model.model import ByteModernBertEncoder
+from src.model.cnn_byte_model import CnnByteModernBertEncoder
 from src.mlm.model import ByteModernBertMlm
 
 """Simple script to evaluate trained or untrained encoders on view-level retrieval,
@@ -71,7 +72,10 @@ def load_model_and_cfg(
         device = torch.device(requested_device)
 
     if resolved_objective == "lejepa":
-        model = ByteModernBertEncoder(cfg=cfg).to(device)
+        if cfg["model"].get("input_mode", "byte") == "cnn_byte":
+            model = CnnByteModernBertEncoder(cfg=cfg).to(device)
+        else:
+            model = ByteModernBertEncoder(cfg=cfg).to(device)
     elif resolved_objective == "mlm":
         model = ByteModernBertMlm(cfg=cfg).to(device)
     else:

@@ -12,6 +12,7 @@ from src.data.dataset import TextDataset
 from src.data.byte_tokenizer import BaselineTokenizer
 from src.aug.augmentations import Augmentations
 from src.model.model import ByteModernBertEncoder
+from src.model.cnn_byte_model import CnnByteModernBertEncoder
 from src.loss.full_loss import FullLoss
 from src.mlm.dataset import MlmDataset
 from src.mlm.model import ByteModernBertMlm
@@ -59,7 +60,10 @@ if __name__ == "__main__":
             tokenizer=tokenizer,
             augmenter=augmenter
         )
-        model = ByteModernBertEncoder(cfg=cfg).to(device)
+        if cfg["model"].get("input_mode", "byte") == "cnn_byte":
+            model = CnnByteModernBertEncoder(cfg=cfg).to(device)
+        else:
+            model = ByteModernBertEncoder(cfg=cfg).to(device)
         loss_fn = FullLoss(
             num_global_views=cfg["loss"]["num_global_views"],
             num_points=cfg["loss"]["num_points"],

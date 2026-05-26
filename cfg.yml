@@ -1,6 +1,10 @@
 model:
+  input_mode: cnn_byte  # if byte normal jepa, if cnn_byte then cnn frontend
   vocab_size: 261  # bytes (0-255) + 5 special ones (but I will only use bytes + PAD)
   hidden_size: 768
+  byte_embedding_dim: 128
+  conv_kernel_size: 8
+  conv_stride: 8
   intermediate_size: 1152
   num_hidden_layers: 22
   num_attention_heads: 12
@@ -32,7 +36,7 @@ loss:
   num_local_views: 4
   num_points: 17
   num_slices: 64
-  ld: 0.1
+  ld: 0.08
 
 aug:
   global_margin_min: 70  # the boundaries for global views (between min and max % of the original crop)
@@ -44,8 +48,8 @@ aug:
 
 exp:
   device: cuda
-  lr: 1e-4
-  objective: mlm
+  lr: 8e-5
+  objective: lejepa
   optim: adamw
   beta0: 0.9
   beta1: 0.95

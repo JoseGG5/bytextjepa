@@ -3,12 +3,15 @@ import torch
 
 from src.data.base_tokenizer import Tokenizer
 
+
 class BaselineTokenizer(Tokenizer):
-    """ This tokenizer simply encodes to bytes and handles optional record truncation.
-        It does not handle chunking strategies like learned chunk or fixed size chunk"""
+    """This tokenizer encodes to bytes and exposes the reserved special token ids."""
+
     def __init__(self, cfg):
         super().__init__()
         self.cfg = cfg
+        self.pad_token_id = int(cfg["model"]["pad_token_id"])
+        self.mask_token_id = int(cfg["model"]["mask_token_id"])
 
 
     def tokenize(self, text: str) -> dict:
@@ -35,6 +38,10 @@ class BaselineTokenizer(Tokenizer):
         return tokenized_text
 
 
+    def get_mask_token_id(self) -> int:
+        return self.mask_token_id
+
+
     def detokenize(self, tokenized_text: dict) -> list[str]:
         """ Detokenizes the tokenized text """
         
@@ -44,4 +51,3 @@ class BaselineTokenizer(Tokenizer):
         valid_ids = input_ids[attention_mask.bool()].tolist()
 
         return bytes(valid_ids).decode("utf-8")
-

@@ -4,6 +4,7 @@ import random
 from pathlib import Path
 
 import torch
+from torch import nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Subset
 
@@ -12,6 +13,7 @@ from src.data.dataset import TextDataset
 from src.data.byte_tokenizer import BaselineTokenizer
 from src.aug.augmentations import Augmentations
 from src.model.model import ByteModernBertEncoder
+from src.mlm.model import ByteModernBertMlm
 
 """Simple script to evaluate trained or untrained encoders on view-level retrieval,
 similarity, and embedding geometry."""
@@ -27,6 +29,13 @@ def parse_args() -> argparse.Namespace:
         help="Evaluate a randomly initialized encoder with no checkpoint loaded.",
     )
     parser.add_argument("--cfg", type=str, default="cfg.yml", help="Path to the config file.")
+    parser.add_argument(
+        "--objective",
+        type=str,
+        choices=["lejepa", "mlm"],
+        default=None,
+        help="Checkpoint objective. Defaults to cfg.yml when omitted.",
+    )
     parser.add_argument("--num-samples", type=int, default=500, help="Number of records to evaluate.")
     parser.add_argument("--batch-size", type=int, default=32, help="Batch size used during evaluation.")
     parser.add_argument("--seed", type=int, default=13, help="Seed for deterministic subset selection.")
@@ -48,10 +57,12 @@ def load_model_and_cfg(
     cfg_path: str,
     checkpoint_path: str | None,
     baseline_untrained: bool,
-) -> tuple[dict, torch.device, ByteModernBertEncoder, str]:
+    objective: str | None,
+) -> tuple[dict, torch.device, nn.Module, str, str]:
     cfg = load_cfg(cfg_path)
     cfg["dataset"]["dev"] = False
     validate_cfg(cfg)
+    resolved_objective = objective or cfg["exp"].get("objective", "lejepa")
 
     requested_device = cfg["exp"]["device"]
     if requested_device == "cuda" and not torch.cuda.is_available():
@@ -59,7 +70,13 @@ def load_model_and_cfg(
     else:
         device = torch.device(requested_device)
 
-    model = ByteModernBertEncoder(cfg=cfg).to(device)
+    if resolved_objective == "lejepa":
+        model = ByteModernBertEncoder(cfg=cfg).to(device)
+    elif resolved_objective == "mlm":
+        model = ByteModernBertMlm(cfg=cfg).to(device)
+    else:
+        raise ValueError(f"Objective {resolved_objective} not implemented in eval.py")
+
     if baseline_untrained:
         checkpoint_label = "baseline_untrained"
     else:
@@ -67,7 +84,15 @@ def load_model_and_cfg(
         model.load_state_dict(checkpoint["model_state_dict"])
         checkpoint_label = checkpoint_path
     model.eval()
-    return cfg, device, model, checkpoint_label
+    return cfg, device, model, checkpoint_label, resolved_objective
+
+
+def get_encoder_backbone(model: nn.Module, objective: str) -> nn.Module:
+    if objective == "lejepa":
+        return model.encoder
+    if objective == "mlm":
+        return model.encoder
+    raise ValueError(f"Objective {objective} not implemented in eval.py")
 
 
 def build_loader(cfg: dict, num_samples: int, batch_size: int, seed: int) -> DataLoader:
@@ -158,23 +183,30 @@ def sample_non_overlapping_pair(
 
 @torch.no_grad()
 def extract_global_view_embeddings(
-    model: ByteModernBertEncoder,
+    model: nn.Module,
     loader: DataLoader,
     device: torch.device,
+    objective: str,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     embeddings_view_a = []
     embeddings_view_b = []
+    encoder = get_encoder_backbone(model, objective)
 
     for batch in loader:
         batch = {k: v.to(device) for k, v in batch.items()}
-        z = model(
-            global_input_ids=batch["global_crops"],
-            global_attn_mask=batch["global_masks"],
-            local_input_ids=batch["local_crops"],
-            local_attn_mask=batch["local_masks"],
-        )
-        embeddings_view_a.append(z[:, 0, :].cpu())
-        embeddings_view_b.append(z[:, 1, :].cpu())
+        global_ids = batch["global_crops"]
+        global_masks = batch["global_masks"]
+
+        input_a = global_ids[:, 0, :]
+        input_b = global_ids[:, 1, :]
+        mask_a = global_masks[:, 0, :]
+        mask_b = global_masks[:, 1, :]
+
+        hidden_a = encoder(input_ids=input_a, attention_mask=mask_a).last_hidden_state
+        hidden_b = encoder(input_ids=input_b, attention_mask=mask_b).last_hidden_state
+
+        embeddings_view_a.append(mean_pooling(hidden_a, mask_a).cpu())
+        embeddings_view_b.append(mean_pooling(hidden_b, mask_b).cpu())
 
     view_a = torch.cat(embeddings_view_a, dim=0)
     view_b = torch.cat(embeddings_view_b, dim=0)
@@ -183,14 +215,16 @@ def extract_global_view_embeddings(
 
 @torch.no_grad()
 def extract_non_overlapping_embeddings(
-    model: ByteModernBertEncoder,
+    model: nn.Module,
     loader: DataLoader,
     tokenizer: BaselineTokenizer,
     cfg: dict,
     device: torch.device,
+    objective: str,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     embeddings_view_a = []
     embeddings_view_b = []
+    encoder = get_encoder_backbone(model, objective)
 
     for texts in loader:
         view_a_ids = []
@@ -214,8 +248,8 @@ def extract_non_overlapping_embeddings(
         mask_a = torch.stack(view_a_masks).to(device)
         mask_b = torch.stack(view_b_masks).to(device)
 
-        hidden_a = model.encoder(input_ids=input_a, attention_mask=mask_a).last_hidden_state
-        hidden_b = model.encoder(input_ids=input_b, attention_mask=mask_b).last_hidden_state
+        hidden_a = encoder(input_ids=input_a, attention_mask=mask_a).last_hidden_state
+        hidden_b = encoder(input_ids=input_b, attention_mask=mask_b).last_hidden_state
 
         embeddings_view_a.append(mean_pooling(hidden_a, mask_a).cpu())
         embeddings_view_b.append(mean_pooling(hidden_b, mask_b).cpu())
@@ -275,21 +309,30 @@ def main() -> None:
     args = parse_args()
     set_seed(args.seed)
 
-    cfg, device, model, checkpoint_label = load_model_and_cfg(
+    cfg, device, model, checkpoint_label, objective = load_model_and_cfg(
         args.cfg,
         args.checkpoint,
         args.baseline_untrained,
+        args.objective,
     )
     if args.non_overlap_positive_pairs:
         tokenizer = BaselineTokenizer(cfg=cfg)
         loader = build_hard_eval_loader(cfg, args.num_samples, args.batch_size, args.seed)
-        view_a, view_b = extract_non_overlapping_embeddings(model, loader, tokenizer, cfg, device)
+        view_a, view_b = extract_non_overlapping_embeddings(
+            model,
+            loader,
+            tokenizer,
+            cfg,
+            device,
+            objective,
+        )
     else:
         loader = build_loader(cfg, args.num_samples, args.batch_size, args.seed)
-        view_a, view_b = extract_global_view_embeddings(model, loader, device)
+        view_a, view_b = extract_global_view_embeddings(model, loader, device, objective)
 
     metrics = {
         "checkpoint": checkpoint_label,
+        "objective": objective,
         "eval_mode": "non_overlap_positive_pairs" if args.non_overlap_positive_pairs else "default_views",
         "num_samples": int(view_a.size(0)),
         "retrieval_top1": retrieval_at_k(view_a, view_b, k=1),

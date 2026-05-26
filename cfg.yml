@@ -1,5 +1,5 @@
 model:
-  input_mode: cnn_byte  # if byte normal jepa, if cnn_byte then cnn frontend
+  input_mode: byte  # if byte normal jepa, if cnn_byte then cnn frontend
   vocab_size: 261  # bytes (0-255) + 5 special ones (but I will only use bytes + PAD)
   hidden_size: 768
   byte_embedding_dim: 128

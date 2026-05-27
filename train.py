@@ -60,6 +60,11 @@ if __name__ == "__main__":
             tokenizer=tokenizer,
             augmenter=augmenter
         )
+
+        # for i in range(min(3, len(dataset))):
+        #     dataset.visualize_crops(idx=i, max_chars=200)
+        #     print("=" * 80)
+
         if cfg["model"].get("input_mode", "byte") == "cnn_byte":
             model = CnnByteModernBertEncoder(cfg=cfg).to(device)
         else:

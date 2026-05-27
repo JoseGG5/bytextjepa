@@ -143,3 +143,8 @@ try to see how close it gets to normal MLM pretraining for a fixed compute**. Af
 - moving from simple pooled view embeddings to span-level latent prediction
 - experimenting with chunking strategies beyond the one-byte baseline
 
+
+
+
+
+https://www.kaggle.com/datasets/nishantsingh96/refined-bookcorpus-dataset?resource=download

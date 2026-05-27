@@ -11,3 +11,4 @@ wheels/
 .env
 wandb/
 results/
+data/

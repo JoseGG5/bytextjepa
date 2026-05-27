@@ -3,16 +3,19 @@ import json
 import random
 from pathlib import Path
 
+import numpy as np
 import torch
 from torch import nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Subset
+from umap import UMAP
 
 from src.utils import load_cfg, mean_pooling, pad_tokens, validate_cfg
 from src.data.dataset import TextDataset
 from src.data.byte_tokenizer import BaselineTokenizer
 from src.aug.augmentations import Augmentations
 from src.model.model import ByteModernBertEncoder
+from src.model.cnn_byte_model import CnnByteModernBertEncoder
 from src.mlm.model import ByteModernBertMlm
 
 """Simple script to evaluate trained or untrained encoders on view-level retrieval,
@@ -44,6 +47,7 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Use two non-overlapping spans from the same record instead of the dataset's default random views.",
     )
+    parser.add_argument("--umap-output", type=str, default=None, help="Optional path to save a small UMAP HTML scatter.")
     parser.add_argument("--output", type=str, default=None, help="Optional path to save metrics as JSON.")
     return parser.parse_args()
 
@@ -71,7 +75,10 @@ def load_model_and_cfg(
         device = torch.device(requested_device)
 
     if resolved_objective == "lejepa":
-        model = ByteModernBertEncoder(cfg=cfg).to(device)
+        if cfg["model"].get("input_mode", "byte") == "cnn_byte":
+            model = CnnByteModernBertEncoder(cfg=cfg).to(device)
+        else:
+            model = ByteModernBertEncoder(cfg=cfg).to(device)
     elif resolved_objective == "mlm":
         model = ByteModernBertMlm(cfg=cfg).to(device)
     else:
@@ -305,6 +312,57 @@ def geometry_summary(embeddings: torch.Tensor) -> dict[str, float]:
     }
 
 
+def save_umap_html(
+    embeddings: torch.Tensor,
+    labels: list[str],
+    colors: list[str],
+    output_path: str,
+    title: str,
+) -> None:
+    reducer = UMAP(n_components=2, random_state=13)
+    projection = reducer.fit_transform(embeddings.numpy())
+
+    min_x, min_y = projection.min(axis=0)
+    max_x, max_y = projection.max(axis=0)
+    span_x = max(max_x - min_x, 1e-6)
+    span_y = max(max_y - min_y, 1e-6)
+
+    points = []
+    for idx, ((x, y), label, color) in enumerate(zip(projection, labels, colors)):
+        svg_x = 40 + 720 * ((x - min_x) / span_x)
+        svg_y = 40 + 420 * ((y - min_y) / span_y)
+        safe_label = (
+            label.replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace('"', "&quot;")
+        )
+        points.append(
+            f'<circle cx="{svg_x:.2f}" cy="{svg_y:.2f}" r="4" fill="{color}" fill-opacity="0.72">'
+            f"<title>{idx}: {safe_label}</title></circle>"
+        )
+
+    html = f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>{title}</title>
+<style>
+body {{ font-family: Georgia, serif; background:#f7f4ef; color:#1f1c18; margin:24px; }}
+.card {{ background:#fffdf8; border:1px solid #ddd4c8; border-radius:16px; padding:20px; max-width:860px; }}
+.legend span {{ display:inline-block; margin-right:16px; }}
+.dot {{ width:10px; height:10px; border-radius:999px; display:inline-block; margin-right:6px; }}
+svg {{ background:#fff; border:1px solid #ddd4c8; border-radius:12px; }}
+</style></head>
+<body><div class="card"><h1>{title}</h1>
+<p>UMAP projection of pooled embeddings. Hover points for index and label.</p>
+<div class="legend">
+<span><span class="dot" style="background:#c25b37"></span>view A</span>
+<span><span class="dot" style="background:#3d6f9e"></span>view B</span>
+</div>
+<svg width="800" height="500" viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg">
+{''.join(points)}
+</svg></div></body></html>"""
+    Path(output_path).write_text(html, encoding="utf-8")
+
+
 def main() -> None:
     args = parse_args()
     set_seed(args.seed)
@@ -342,6 +400,19 @@ def main() -> None:
     metrics.update(geometry_summary(torch.cat([view_a, view_b], dim=0)))
 
     print(json.dumps(metrics, indent=2))
+
+    if args.umap_output is not None:
+        umap_embeddings = torch.cat([view_a, view_b], dim=0).cpu()
+        num_points = view_a.size(0)
+        umap_labels = [f"view_a_{idx}" for idx in range(num_points)] + [f"view_b_{idx}" for idx in range(num_points)]
+        umap_colors = ["#c25b37"] * num_points + ["#3d6f9e"] * num_points
+        save_umap_html(
+            embeddings=umap_embeddings,
+            labels=umap_labels,
+            colors=umap_colors,
+            output_path=args.umap_output,
+            title=f"UMAP - {objective} - {metrics['eval_mode']}",
+        )
 
     if args.output is not None:
         output_path = Path(args.output)

@@ -1,6 +1,10 @@
 model:
+  input_mode: byte  # if byte normal jepa, if cnn_byte then cnn frontend
   vocab_size: 261  # bytes (0-255) + 5 special ones (but I will only use bytes + PAD)
   hidden_size: 768
+  byte_embedding_dim: 128
+  conv_kernel_size: 8
+  conv_stride: 8
   intermediate_size: 1152
   num_hidden_layers: 22
   num_attention_heads: 12
@@ -15,7 +19,7 @@ model:
   max_position_embeddings: 768  # maximum size we will be able to process (architectural constraint for inference)
 
 dataset:
-  name: IIC/ClinText-SP
+  name: bookcorpus
   split: train
   version: dedup
   dev: true
@@ -32,11 +36,11 @@ loss:
   num_local_views: 4
   num_points: 17
   num_slices: 64
-  ld: 0.1
+  ld: 0.08
 
 aug:
-  global_margin_min: 70  # the boundaries for global views (between min and max % of the original crop)
-  global_margin_max: 100
+  global_margin_min: 50  # the boundaries for global views (between min and max % of the original crop)
+  global_margin_max: 65
   local_margin_min: 10  # the boundaries for local views (between min and max % of the original crop)
   local_margin_max: 35
   local_max_length: 128  # the max token to pad/truncate a local crop (tune every time you change max_position_embeddings)
@@ -44,14 +48,14 @@ aug:
 
 exp:
   device: cuda
-  lr: 1e-4
-  objective: mlm
+  lr: 8e-5
+  objective: lejepa
   optim: adamw
   beta0: 0.9
   beta1: 0.95
   eps: 1e-8
   wd: 0.01
-  epochs: 1000
+  epochs: 50
   log_every_n_step: 1
   save_every_n_step: 500
   use_bf16: true

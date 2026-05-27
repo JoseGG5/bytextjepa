@@ -88,6 +88,7 @@ if __name__ == "__main__":
         shuffle=True
     )
     model.train()
+    max_steps = cfg["exp"].get("max_steps")
 
     # setup the optim
 
@@ -129,7 +130,10 @@ if __name__ == "__main__":
         raise ValueError(f"Optim {cfg['exp']['optim']} not implemented in codebase")
 
     # LR scheduler: short warmup followed by cosine decay.
-    total_steps = max(1, len(dataloader) * cfg["exp"]["epochs"])
+    if max_steps is not None:
+        total_steps = int(max_steps)
+    else:
+        total_steps = max(1, len(dataloader) * cfg["exp"]["epochs"])
     warmup_steps = max(1, int(float(cfg['optim']['warmup_steps']) * total_steps))
     cosine_steps = max(1, total_steps - warmup_steps)
 
@@ -151,7 +155,8 @@ if __name__ == "__main__":
 
     # start train pipe
     step = 0
-    for epoch in range(cfg["exp"]["epochs"]):
+    epoch = 0
+    while step < total_steps:
         for batch in dataloader:
             
             batch = {  # just to move to gpu
@@ -225,6 +230,7 @@ if __name__ == "__main__":
                 torch.save(
                     {
                         "step": step,
+                        "epoch": epoch,
                         "model_state_dict": model.state_dict(),
                         "optimizer_state_dict": optimizer.state_dict(),
                         "cfg": cfg,
@@ -234,3 +240,6 @@ if __name__ == "__main__":
                 )
             
             step += 1
+            if step >= total_steps:
+                break
+        epoch += 1

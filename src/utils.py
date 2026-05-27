@@ -24,6 +24,7 @@ def validate_cfg(cfg: dict) -> None:
     local_max_length = cfg["aug"]["local_max_length"]
     record_max_bytes = cfg["data"]["record_max_bytes"]
     mlm_max_length = cfg.get("mlm", {}).get("max_length")
+    max_steps = cfg.get("exp", {}).get("max_steps")
 
     if max_position_embeddings <= 0:
         raise ValueError("model.max_position_embeddings must be greater than 0")
@@ -44,6 +45,8 @@ def validate_cfg(cfg: dict) -> None:
             raise ValueError("mlm.max_length must be greater than 0")
         if mlm_max_length > max_position_embeddings:
             raise ValueError("mlm.max_length cannot be greater than model.max_position_embeddings")
+    if max_steps is not None and max_steps <= 0:
+        raise ValueError("exp.max_steps must be greater than 0 or null")
 
 
 def load_hf_dataset(cfg: dict) -> datasets.arrow_dataset.Dataset:

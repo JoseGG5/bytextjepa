@@ -83,6 +83,40 @@ class TextDataset(Dataset):
             "local_masks": local_masks,
         }
 
+    def visualize_crops(self, idx: int = 0, max_chars: int = 200) -> None:
+        """Print the source text and the decoded crops for quick inspection."""
+        if isinstance(self.data, pd.DataFrame):
+            sample = self.data.iloc[idx]
+        else:
+            sample = self.data[idx]
+
+        text = sample["text"]
+        tokenized = self.tokenizer.tokenize(text)
+        input_data = {
+            "idx": idx,
+            "input_ids": tokenized["input_ids"],
+            "attention_mask": tokenized["attention_mask"],
+        }
+        global_crops, local_crops, global_masks, local_masks = self.augmenter(input_data)
+
+        print(f"Sample {idx}")
+        print(f"Original: {text[:max_chars]}")
+        print()
+
+        for crop_idx, (crop, mask) in enumerate(zip(global_crops, global_masks), start=1):
+            decoded = self.tokenizer.detokenize(
+                {"input_ids": crop, "attention_mask": mask}
+            )
+            print(f"Global {crop_idx}: {decoded[:max_chars]}")
+
+        print()
+
+        for crop_idx, (crop, mask) in enumerate(zip(local_crops, local_masks), start=1):
+            decoded = self.tokenizer.detokenize(
+                {"input_ids": crop, "attention_mask": mask}
+            )
+            print(f"Local {crop_idx}: {decoded[:max_chars]}")
+
         
 
 

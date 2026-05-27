@@ -39,8 +39,8 @@ loss:
   ld: 0.08
 
 aug:
-  global_margin_min: 70  # the boundaries for global views (between min and max % of the original crop)
-  global_margin_max: 100
+  global_margin_min: 50  # the boundaries for global views (between min and max % of the original crop)
+  global_margin_max: 65
   local_margin_min: 10  # the boundaries for local views (between min and max % of the original crop)
   local_margin_max: 35
   local_max_length: 128  # the max token to pad/truncate a local crop (tune every time you change max_position_embeddings)

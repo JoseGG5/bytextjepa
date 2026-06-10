@@ -48,9 +48,21 @@ class TextDataset(Dataset):
                 data = data.select(range(1))
 
         self.data = data
+        self.record_max_bytes = cfg["data"].get("record_max_bytes")
 
     def __len__(self):
         return len(self.data)
+
+    def _truncate_tokenized_record(self, tokenized: dict) -> dict:
+        """Cap the byte sequence before crop sampling when requested by config."""
+        if self.record_max_bytes is None:
+            return tokenized
+
+        max_bytes = int(self.record_max_bytes)
+        return {
+            "input_ids": tokenized["input_ids"][:max_bytes],
+            "attention_mask": tokenized["attention_mask"][:max_bytes],
+        }
 
     def __getitem__(self, idx):
         if isinstance(self.data, pd.DataFrame):
@@ -64,7 +76,7 @@ class TextDataset(Dataset):
         }
 
         # tokenize the data and store ids and masks
-        out_tokenizer = self.tokenizer.tokenize(text)
+        out_tokenizer = self._truncate_tokenized_record(self.tokenizer.tokenize(text))
         input["input_ids"] = out_tokenizer["input_ids"]
         input["attention_mask"] = out_tokenizer["attention_mask"]
 
@@ -91,7 +103,7 @@ class TextDataset(Dataset):
             sample = self.data[idx]
 
         text = sample["text"]
-        tokenized = self.tokenizer.tokenize(text)
+        tokenized = self._truncate_tokenized_record(self.tokenizer.tokenize(text))
         input_data = {
             "idx": idx,
             "input_ids": tokenized["input_ids"],

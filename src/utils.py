@@ -141,6 +141,30 @@ def mean_pooling(x: torch.Tensor, attn_mask: torch.Tensor):
     return mean_embeddings
 
 
+def pool_encoder_output(
+    encoder,
+    input_ids: torch.Tensor,
+    attention_mask: torch.Tensor,
+) -> torch.Tensor:
+    """Run an encoder and pool its token states with the correct attention mask.
+
+    Some backbones, such as the CNN byte encoder, shrink the sequence length before
+    the transformer. In that case we must reduce the attention mask before pooling.
+    """
+
+    hidden = encoder(
+        input_ids=input_ids,
+        attention_mask=attention_mask,
+    ).last_hidden_state
+
+    if hasattr(encoder, "_reduce_attention_mask"):
+        pooled_mask = encoder._reduce_attention_mask(attention_mask)
+    else:
+        pooled_mask = attention_mask
+
+    return mean_pooling(hidden, pooled_mask)
+
+
 def get_exp_name():
     """ Useful function to ensure a convention in experiment naming """
     all_exps = os.listdir("results")

@@ -1,5 +1,5 @@
 model:
-  input_mode: byte  # if byte normal jepa, if cnn_byte then cnn frontend
+  input_mode: cnn_byte  # if byte normal jepa, if cnn_byte then cnn frontend
   vocab_size: 261  # bytes (0-255) + 5 special ones (but I will only use bytes + PAD)
   hidden_size: 768
   byte_embedding_dim: 128
@@ -16,7 +16,7 @@ model:
   cls_token_id: 259
   sep_token_id: 260
   local_attention: 128
-  max_position_embeddings: 768  # maximum size we will be able to process (architectural constraint for inference)
+  max_position_embeddings: 1024  # maximum size we will be able to process (architectural constraint for inference)
 
 dataset:
   name: bookcorpus
@@ -35,13 +35,13 @@ loss:
   num_global_views: 2
   num_local_views: 4
   num_points: 17
-  num_slices: 64
-  ld: 0.08
+  num_slices: 128
+  ld: 0.15
 
 aug:
-  global_margin_min: 50  # the boundaries for global views (between min and max % of the original crop)
-  global_margin_max: 65
-  local_margin_min: 10  # the boundaries for local views (between min and max % of the original crop)
+  global_margin_min: 70  # global views crop this % of the shared anchor window (high on purpose: guarantees the two global views overlap heavily)
+  global_margin_max: 100
+  local_margin_min: 10  # local views crop this % of the same shared anchor window (so locals always fall inside the global region)
   local_margin_max: 35
   local_max_length: 128  # the max token to pad/truncate a local crop (tune every time you change max_position_embeddings)
   global_max_length: 512  # the max token to pad/truncate a local crop (this is indeed the max length we will see in training)

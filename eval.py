@@ -10,7 +10,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, Subset
 from umap import UMAP
 
-from src.utils import load_cfg, mean_pooling, pad_tokens, validate_cfg
+from src.utils import load_cfg, pad_tokens, pool_encoder_output, validate_cfg
 from src.data.dataset import TextDataset
 from src.data.byte_tokenizer import BaselineTokenizer
 from src.aug.augmentations import Augmentations
@@ -209,11 +209,8 @@ def extract_global_view_embeddings(
         mask_a = global_masks[:, 0, :]
         mask_b = global_masks[:, 1, :]
 
-        hidden_a = encoder(input_ids=input_a, attention_mask=mask_a).last_hidden_state
-        hidden_b = encoder(input_ids=input_b, attention_mask=mask_b).last_hidden_state
-
-        embeddings_view_a.append(mean_pooling(hidden_a, mask_a).cpu())
-        embeddings_view_b.append(mean_pooling(hidden_b, mask_b).cpu())
+        embeddings_view_a.append(pool_encoder_output(encoder, input_a, mask_a).cpu())
+        embeddings_view_b.append(pool_encoder_output(encoder, input_b, mask_b).cpu())
 
     view_a = torch.cat(embeddings_view_a, dim=0)
     view_b = torch.cat(embeddings_view_b, dim=0)
@@ -255,11 +252,8 @@ def extract_non_overlapping_embeddings(
         mask_a = torch.stack(view_a_masks).to(device)
         mask_b = torch.stack(view_b_masks).to(device)
 
-        hidden_a = encoder(input_ids=input_a, attention_mask=mask_a).last_hidden_state
-        hidden_b = encoder(input_ids=input_b, attention_mask=mask_b).last_hidden_state
-
-        embeddings_view_a.append(mean_pooling(hidden_a, mask_a).cpu())
-        embeddings_view_b.append(mean_pooling(hidden_b, mask_b).cpu())
+        embeddings_view_a.append(pool_encoder_output(encoder, input_a, mask_a).cpu())
+        embeddings_view_b.append(pool_encoder_output(encoder, input_b, mask_b).cpu())
 
     view_a = torch.cat(embeddings_view_a, dim=0)
     view_b = torch.cat(embeddings_view_b, dim=0)

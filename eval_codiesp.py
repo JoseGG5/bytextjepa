@@ -15,7 +15,7 @@ from sklearn.preprocessing import MultiLabelBinarizer, StandardScaler
 from sklearn.linear_model import LogisticRegression
 from umap import UMAP
 
-from src.utils import load_cfg, mean_pooling, pad_tokens, validate_cfg
+from src.utils import load_cfg, pad_tokens, pool_encoder_output, validate_cfg
 from src.data.byte_tokenizer import BaselineTokenizer
 from src.model.model import ByteModernBertEncoder
 from src.model.cnn_byte_model import CnnByteModernBertEncoder
@@ -210,8 +210,7 @@ def embed_documents(
         for start in range(0, len(chunks), chunk_batch_size):
             batch_ids = torch.stack(chunks[start:start + chunk_batch_size]).to(device)
             batch_masks = torch.stack(masks[start:start + chunk_batch_size]).to(device)
-            hidden = encoder(input_ids=batch_ids, attention_mask=batch_masks).last_hidden_state
-            chunk_embeddings.append(mean_pooling(hidden, batch_masks).cpu())
+            chunk_embeddings.append(pool_encoder_output(encoder, batch_ids, batch_masks).cpu())
 
         doc_embedding = torch.cat(chunk_embeddings, dim=0).mean(dim=0)
         document_embeddings.append(doc_embedding)

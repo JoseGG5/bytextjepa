@@ -146,6 +146,7 @@ if __name__ == "__main__":
     cosine_scheduler = CosineAnnealingLR(
         optimizer,
         T_max=cosine_steps,
+        eta_min=float(cfg['optim'].get('eta_min_factor', 0.0)) * float(cfg['exp']['lr']),
     )
     scheduler = SequentialLR(
         optimizer,

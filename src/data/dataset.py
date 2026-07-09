@@ -1,7 +1,7 @@
 import pandas as pd
 from torch.utils.data import Dataset
 
-from src.utils import load_hf_dataset
+from src.utils import load_hf_dataset, load_mixture_dataset
 from src.data.base_tokenizer import Tokenizer
 from src.aug.augmentations import Augmentations
 
@@ -31,8 +31,11 @@ class TextDataset(Dataset):
             data = data[data["text"].notna() & (data["text"].str.strip().str.len() >= 64)]
             data = data.reset_index(drop=True)
 
+        elif self.cfg["name"] == "mixture":
+            data = load_mixture_dataset(cfg=cfg)
+
         else:
-            raise ValueError("Dataset not found. Choose between: bookcorpus or IIC/ClinText-SP")
+            raise ValueError("Dataset not found. Choose between: bookcorpus, mixture or IIC/ClinText-SP")
 
         """After inspecting with the SQL console in HF there are empty 
         or really short records. Given that n_bytes ~= n_chars we can safely

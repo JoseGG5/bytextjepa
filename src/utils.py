@@ -59,6 +59,35 @@ def load_hf_dataset(cfg: dict) -> datasets.arrow_dataset.Dataset:
     return dataset
 
 
+def load_mixture_dataset(cfg: dict) -> datasets.arrow_dataset.Dataset:
+    """Loads and concatenates several sources into one Dataset with a 'text' column."""
+    pieces = []
+    for source in cfg["dataset"]["mixture"]:
+        if source["name"] == "bookcorpus_local":
+            # Dataset.from_pandas would dill-pickle the whole in-memory table just to
+            # compute a fingerprint, which OOMs on a ~5GB dataframe. from_csv streams
+            # through Arrow's CSV reader instead.
+            ds = datasets.Dataset.from_csv("data/BookCorpus3.csv")
+        else:
+            ds = load_dataset(
+                source["name"],
+                source.get("version"),
+                split=cfg["dataset"]["split"],
+                revision=source.get("revision"),
+            )
+
+        text_col = "text" if "text" in ds.column_names else ds.column_names[0]
+        ds = ds.select_columns([text_col])
+        if text_col != "text":
+            ds = ds.rename_column(text_col, "text")
+        ds = ds.filter(lambda x: x["text"] is not None and len(x["text"].strip()) >= 64)
+        n = min(source["target_rows"], len(ds))
+        pieces.append(ds.shuffle(seed=13).select(range(n)))
+
+    combined = datasets.concatenate_datasets(pieces)
+    return combined.shuffle(seed=13)
+
+
 # TODO: This works for 1D tokens, but code is confusing as it is in some parts generic and expecting 2D.
 # Maybe should refactor a bit but it works so its fine
 def pad_tokens(

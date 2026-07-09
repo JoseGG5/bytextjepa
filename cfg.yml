@@ -19,10 +19,16 @@ model:
   max_position_embeddings: 1024  # maximum size we will be able to process (architectural constraint for inference)
 
 dataset:
-  name: bookcorpus
+  name: mixture       # antes: bookcorpus
   split: train
   version: dedup
   dev: true
+  mixture:
+    - name: bookcorpus_local          # data/BookCorpus3.csv, sin tocarlo
+      target_rows: 8_000_000
+    - name: Skylion007/openwebtext
+      target_rows: 8_000_000          # dataset completo, ~8.01M docs
+      revision: refs/convert/parquet  # datasets moderno ya no soporta su script de carga
 
 data:
   record_max_bytes: 4096  # how many raw bytes of a record are retained before crop sampling

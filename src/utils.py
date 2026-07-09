@@ -80,6 +80,10 @@ def load_mixture_dataset(cfg: dict) -> datasets.arrow_dataset.Dataset:
         ds = ds.select_columns([text_col])
         if text_col != "text":
             ds = ds.rename_column(text_col, "text")
+        # Sources disagree on string width (e.g. Dataset.from_csv yields Value('string'),
+        # OpenWebText's parquet yields Value('large_string')); concatenate_datasets requires
+        # an exact feature match, so pin every piece to the same type before concatenating.
+        ds = ds.cast_column("text", datasets.Value("large_string"))
         ds = ds.filter(lambda x: x["text"] is not None and len(x["text"].strip()) >= 64)
         n = min(source["target_rows"], len(ds))
         pieces.append(ds.shuffle(seed=13).select(range(n)))
